@@ -1,4 +1,6 @@
 import React from 'react';
+import day from 'dayjs';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useParams } from 'react-router-dom';
 
 import Rate from '../components/Rate';
@@ -10,8 +12,21 @@ function Trading(): React.ReactElement {
   const controller = React.useRef<AbortController>();
   const { from, to } = useParams();
   const [series, setSeries] = React.useState<{ date: number; price: number; ask: number; bid: number }[]>([]);
-  const [high, setHigh] = React.useState<number>(0.00);
-  const [low, setLow] = React.useState<number>(0.00);
+  const [high, setHigh] = React.useState<number>(- Infinity);
+  const [low, setLow] = React.useState<number>(Infinity);
+
+  const ChartTooltip = React.useCallback(({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="py-4 px-6 shadow bg-white rounded-md text-black">
+          <div className="font-bold">{ payload[0].payload.price }</div>
+          <div>{ new Date(payload[0].payload.date).toLocaleString() }</div>
+        </div>
+      );
+    }
+
+    return null;
+  }, []);
 
   const actions = {
     stream: async (signal: AbortSignal) => {
@@ -29,8 +44,6 @@ function Trading(): React.ReactElement {
       }
 
       const reader = response.body.getReader();
-
-      signal.addEventListener('abort', (event) => reader.cancel(event));
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -60,10 +73,12 @@ function Trading(): React.ReactElement {
               ask: parseFloat(data[0].ask.toFixed(3)),
               bid: parseFloat(data[0].bid.toFixed(3)),
             },
-            ...previous.slice(0, 49),
+            ...previous.slice(0, 29),
           ]);
-        } catch (error) {
-          logger.error(error);
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
+            logger.error(error);
+          }
 
           return;
         }
@@ -87,24 +102,107 @@ function Trading(): React.ReactElement {
 
   return (
     <div className="container mx-auto h-full px-6 py-8">
-      <div className="flex items-center">
-        <h1 className="text-2xl font-bold">{ `${ from } to ${ to }` }</h1>
+      <div className="flex flex-1 flex-row overflow-y-scroll">
+        <div className="flex flex-col grow h-screen px-6">
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold">{ `${ from } to ${ to }` }</h1>
 
-        <div className="ml-6"><Rate price={ series[0]?.price } high={ high } /></div>
-      </div>
+            <div className="ml-6 w-40"><Rate price={ series[0]?.price } high={ high } /></div>
 
-      <div className="max-h-screen py-4 mt-6">
-        <div className="flex flex-1 flex-col overflow-y-scroll">
-          <table className="text-sm">
+            <div className="flex justify-between w-28 text-xs">
+              <div className="font-bold">High</div>
+              <div className="text-right text-gray-500">
+                { high !== - Infinity ? high : <div className="animate-pulse h-2 w-8 bg-zinc-700/40 rounded my-1" /> }
+              </div>
+            </div>
+
+            <div className="flex justify-between w-28 ml-4 text-xs">
+              <div className="font-bold">Low</div>
+              <div className="text-right text-gray-500">
+                { low !== Infinity ? low : <div className="animate-pulse h-2 w-8 bg-zinc-700/40 rounded my-1" /> }
+              </div>
+            </div>
+          </div>
+
+          <ResponsiveContainer className="mt-12" height="100%" maxHeight={ 500 } width="100%">
+            <AreaChart
+              data={ series }
+              margin={{
+                top: 5,
+                right: 30,
+                left: 0,
+                bottom: 10,
+              }}
+              height={ 500 }
+            >
+              <defs>
+                <linearGradient id="chart-color" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#71cc80" stopOpacity={ 0.3 } />
+                  <stop offset="95%" stopColor="#71cc80" stopOpacity={ 0.01 } />
+                </linearGradient>
+              </defs>
+
+              <XAxis
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+                dataKey="date"
+                domain={ ['dataMin - 5', 'dataMax + 5'] }
+                height={ 50 }
+                minTickGap={ 10 }
+                tickFormatter={ (time) => day(time).format('HH:mm:ss') }
+                tickMargin={ 10 }
+                scale="time"
+                type="number"
+              />
+
+              <YAxis
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+              />
+
+              <Tooltip
+                content={ ChartTooltip }
+              />
+
+              <CartesianGrid vertical={ false } strokeOpacity={ 0.2 } strokeDasharray="2 2" />
+
+              <Area
+                dot={ false }
+                type="natural"
+                dataKey="price"
+                stroke="#71cc80"
+                fillOpacity={ 1 }
+                fill="url(#chart-color)"
+                isAnimationActive={ false }
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div>
+          <table className="w-60 text-sm">
             <thead className="font-thin text-gray-400">
               <tr>
                 <th className="text-left w-20 py-2">ASK</th>
                 <th className="text-left w-20 py-2">BID</th>
-                <th className="text-left w-40 py-2">PRICE</th>
+                <th className="text-left w-20 py-2">PRICE</th>
               </tr>
             </thead>
 
             <tbody>
+              { series.length === 0 && [...Array(20)].map((key, index) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <tr key={ `placeholder:${ index }` }>
+                  <td className="text-center">
+                    <div className="animate-pulse h-4 w-3/4 bg-zinc-700/20 rounded my-1" />
+                  </td>
+                  <td className="text-center">
+                    <div className="animate-pulse h-4 w-3/4 bg-zinc-700/20 rounded my-1" />
+                  </td>
+                  <td className="text-center">
+                    <div className="animate-pulse h-4 w-3/4 bg-zinc-700/20 rounded my-1" />
+                  </td>
+                </tr>
+              )) }
+
               { series.map((data) => (
                 <tr key={ data.date } className="cursor-pointer hover:bg-zinc-800/50">
                   <td className="text-red-500 mr-1">{ data.ask }</td>
@@ -115,7 +213,6 @@ function Trading(): React.ReactElement {
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   );

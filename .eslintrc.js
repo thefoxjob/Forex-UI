@@ -21,6 +21,12 @@ module.exports = {
         'gulpfile.ts', 'postcss.config.js', './tailwind.config.js', './vite.config.ts',
       ],
     }],
+    'object-curly-newline': ['error', {
+      ObjectExpression: { minProperties: 8, multiline: true, consistent: true },
+      ObjectPattern: { minProperties: 8, multiline: true, consistent: true },
+      ImportDeclaration: { minProperties: 8, multiline: true, consistent: true },
+      ExportDeclaration: { minProperties: 8, multiline: true, consistent: true },
+    }],
     'react/jsx-props-no-spreading': ['off'],
   },
 };

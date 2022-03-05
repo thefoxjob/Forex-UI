@@ -8,6 +8,7 @@ import { CurrencyCode } from '../constants';
 type Props = {
   onChange: (value: CurrencyCode | undefined) => void;
   value?: CurrencyCode;
+  placeholder?: string;
 }
 
 function CurrencySelector(props: Props): React.ReactElement {
@@ -23,7 +24,7 @@ function CurrencySelector(props: Props): React.ReactElement {
               </>
             ) }
 
-            { ! props.value && <span className="block truncate text-gray-400">Select a Currency</span> }
+            { ! props.value && <span className="block truncate text-gray-400">{ props.placeholder ?? 'Select...' }</span> }
           </div>
           <span className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
             <i className="fa-solid fa-chevron-down" />
@@ -59,6 +60,7 @@ function CurrencySelector(props: Props): React.ReactElement {
 }
 
 CurrencySelector.defaultProps = {
+  placeholder: undefined,
   value: undefined,
 };
 

@@ -1,7 +1,6 @@
 import React, { Fragment } from 'react';
-import classnames from 'classnames';
 import { Controller, useForm } from 'react-hook-form';
-import { Dialog, Listbox, Transition } from '@headlessui/react';
+import { Dialog, Transition } from '@headlessui/react';
 
 import CurrencySelector from './CurrencySelector';
 import { CurrencyCode } from '../constants';
@@ -9,6 +8,7 @@ import { CurrencyCode } from '../constants';
 
 type Props = {
   show?: boolean;
+  onClose?: (value: boolean) => void;
   onSubmit: (from: CurrencyCode, to: CurrencyCode) => void;
 }
 
@@ -21,6 +21,11 @@ function CurrencyDialog(props: Props) {
   const form = useForm<FormValues>();
 
   const events = {
+    handleDialogClose: (value: boolean) => {
+      if (props.onClose) {
+        props.onClose(value);
+      }
+    },
     handleFormSubmit: (values: FormValues) => {
       if (values.from && values.to) {
         props.onSubmit(values.from, values.to);
@@ -29,10 +34,20 @@ function CurrencyDialog(props: Props) {
   };
 
   return (
-    <Transition appear show={ props.show } as={ Fragment }>
-      <Dialog open onClose={ () => {} } className="fixed inset-0 z-10 overflow-y-auto">
+    <Transition
+      appear
+      show={ props.show }
+      as={ Fragment }
+      enter="transition-opacity duration-300"
+      enterFrom="opacity-0"
+      enterTo="opacity-100"
+      leave="transition-opacity duration-300"
+      leaveFrom="opacity-100"
+      leaveTo="opacity-0"
+    >
+      <Dialog open onClose={ events.handleDialogClose } className="fixed inset-0 z-10 overflow-y-auto">
         <div className="min-h-screen px-4 text-center">
-          <Dialog.Overlay className="fixed inset-0 backdrop-blur-sm" />
+          <Dialog.Overlay className="fixed inset-0 backdrop-blur-md" />
 
           <div className="flex flex-1 min-h-screen min-w-screen justify-center items-center">
             <div className="inline-block p-6 my-8 align-middle transition-all transform text-white w-full max-w-md">
@@ -48,7 +63,7 @@ function CurrencyDialog(props: Props) {
                         control={ form.control }
                         rules={{ required: true }}
                         render={ ({ field }) => (
-                          <CurrencySelector value={ field.value } onChange={ field.onChange } />
+                          <CurrencySelector value={ field.value } onChange={ field.onChange } placeholder="From" />
                         ) }
                       />
                     </div>
@@ -59,7 +74,7 @@ function CurrencyDialog(props: Props) {
                         control={ form.control }
                         rules={{ required: true }}
                         render={ ({ field }) => (
-                          <CurrencySelector value={ field.value } onChange={ field.onChange } />
+                          <CurrencySelector value={ field.value } onChange={ field.onChange } placeholder="To" />
                         ) }
                       />
                     </div>
@@ -80,6 +95,7 @@ function CurrencyDialog(props: Props) {
 
 CurrencyDialog.defaultProps = {
   show: false,
+  onClose: undefined,
 };
 
 export default CurrencyDialog;
