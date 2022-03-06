@@ -11,6 +11,6 @@ The choosen language for this assignment is TypeScript and use Vite, React, Tail
 ```shell
 
 yarn install
-npm run start
+VITE_ONE_FRAME_API_TOKEN=<replace with one frame token here> npm run start
 
 ```
