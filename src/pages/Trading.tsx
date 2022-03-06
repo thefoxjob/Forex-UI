@@ -1,6 +1,7 @@
 import React from 'react';
 import day from 'dayjs';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { toast } from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
 
 import Rate from '../components/Rate';
@@ -30,58 +31,64 @@ function Trading(): React.ReactElement {
 
   const actions = {
     stream: async (signal: AbortSignal) => {
-      const response = await fetch(`${ import.meta.env.VITE_ONE_FRAME_API_ENDPOINT }/streaming/rates?pair=${ from }${ to }`, {
-        signal,
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          token: import.meta.env.VITE_ONE_FRAME_API_TOKEN,
-        },
-      });
+      try {
+        const response = await fetch(`${ import.meta.env.VITE_ONE_FRAME_API_ENDPOINT }/streaming/rates?pair=${ from }${ to }`, {
+          signal,
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            token: import.meta.env.VITE_ONE_FRAME_API_TOKEN,
+          },
+        });
 
-      if (! response.body) {
-        return;
-      }
-
-      const reader = response.body.getReader();
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const { done, value } = await reader.read();
-
-          if (done) {
-            return;
-          }
-
-          // eslint-disable-next-line no-await-in-loop
-          const data = await new Response(value).json() as API.Currency[];
-
-          if (data[0].price > high) {
-            setHigh(parseFloat(data[0].price.toFixed(3)));
-          }
-
-          if (data[0].price < low) {
-            setLow(parseFloat(data[0].price.toFixed(3)));
-          }
-
-          setSeries((previous) => [
-            {
-              date: new Date(data[0].time_stamp).getTime(),
-              price: parseFloat(data[0].price.toFixed(3)),
-              ask: parseFloat(data[0].ask.toFixed(3)),
-              bid: parseFloat(data[0].bid.toFixed(3)),
-            },
-            ...previous.slice(0, 29),
-          ]);
-        } catch (error: unknown) {
-          if (error instanceof Error && error.name !== 'AbortError') {
-            logger.error(error);
-          }
-
+        if (! response.body) {
           return;
         }
+
+        const reader = response.body.getReader();
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const { done, value } = await reader.read();
+
+            if (done) {
+              return;
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const data = await new Response(value).json() as API.Currency[];
+
+            if (data[0].price > high) {
+              setHigh(parseFloat(data[0].price.toFixed(3)));
+            }
+
+            if (data[0].price < low) {
+              setLow(parseFloat(data[0].price.toFixed(3)));
+            }
+
+            setSeries((previous) => [
+              {
+                date: new Date(data[0].time_stamp).getTime(),
+                price: parseFloat(data[0].price.toFixed(3)),
+                ask: parseFloat(data[0].ask.toFixed(3)),
+                bid: parseFloat(data[0].bid.toFixed(3)),
+              },
+              ...previous.slice(0, 29),
+            ]);
+          } catch (error: unknown) {
+            if (error instanceof Error && error.name !== 'AbortError') {
+              logger.error(error);
+              toast('Error while reading data from the server. Please try again later.');
+            }
+
+            return;
+          }
+        }
+      } catch (error) {
+        logger.error(error);
+        toast('Unable to connect to server. Please try again later.');
       }
     },
   };

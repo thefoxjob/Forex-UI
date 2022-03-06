@@ -2,6 +2,7 @@ import React from 'react';
 import qs from 'qs';
 import { Link } from 'react-router-dom';
 import { Transition } from '@headlessui/react';
+import { toast } from 'react-hot-toast';
 
 import CurrencyDialog from './CurrencyDialog';
 import logger from '../utils/logger';
@@ -17,48 +18,54 @@ function Sidebar(): React.ReactElement {
 
   const actions = {
     stream: async (signal: AbortSignal) => {
-      const response = await fetch(`${ import.meta.env.VITE_ONE_FRAME_API_ENDPOINT }/streaming/rates?${ qs.stringify({ pair: [...pairs.values()] }, { arrayFormat: 'repeat' }) }`, {
-        signal,
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          token: import.meta.env.VITE_ONE_FRAME_API_TOKEN,
-        },
-      });
+      try {
+        const response = await fetch(`${ import.meta.env.VITE_ONE_FRAME_API_ENDPOINT }/streaming/rates?${ qs.stringify({ pair: [...pairs.values()] }, { arrayFormat: 'repeat' }) }`, {
+          signal,
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            token: import.meta.env.VITE_ONE_FRAME_API_TOKEN,
+          },
+        });
 
-      if (! response.body) {
-        return;
-      }
-
-      const reader = response.body.getReader();
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const { done, value } = await reader.read();
-
-          if (done) {
-            return;
-          }
-
-          // eslint-disable-next-line no-await-in-loop
-          const data = await new Response(value).json() as API.Currency[];
-
-          if (Array.isArray(data)) {
-            setCurrencies(() => data.reduce((accumulator, currency) => {
-              accumulator[`${ currency.from }${ currency.to }`] = currency;
-
-              return accumulator;
-            }, {} as Record<string, API.Currency>));
-          }
-        } catch (error) {
-          if (error instanceof Error && error.name !== 'AbortError') {
-            logger.error(error);
-          }
-
+        if (! response.body) {
           return;
         }
+
+        const reader = response.body.getReader();
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const { done, value } = await reader.read();
+
+            if (done) {
+              return;
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const data = await new Response(value).json() as API.Currency[];
+
+            if (Array.isArray(data)) {
+              setCurrencies(() => data.reduce((accumulator, currency) => {
+                accumulator[`${ currency.from }${ currency.to }`] = currency;
+
+                return accumulator;
+              }, {} as Record<string, API.Currency>));
+            }
+          } catch (error) {
+            if (error instanceof Error && error.name !== 'AbortError') {
+              logger.error(error);
+              toast('Error while reading data from the server. Please try again later.');
+            }
+
+            return;
+          }
+        }
+      } catch (error) {
+        logger.error(error);
+        toast('Unable to connect to server. Please try again later.');
       }
     },
   };
